@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Secure Chat (Browser)</title>
+
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --muted: #57606a;
+      --accent: #2563eb;
+      --accent-2: #1e40af;
+      --panel: #f7fbff;
+      --success: #10b981;
+      --danger: #ef4444;
+      --radius: 12px;
+      --pad: 14px;
+      --shadow: 0 8px 30px rgba(14, 30, 60, 0.06);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #0ea5e9;
+      --panel: #334155;
+      --success: #22c55e;
+      --danger: #ef4444;
+      color: #f1f5f9;
+    }
+
+    html, body { height:100% }
+    body {
+      margin:0;
+      background: var(--bg);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      transition: background 0.4s ease, color 0.4s ease;
+    }
+
+    .container { width:100%; max-width:1000px; }
+    .app {
+      background: var(--card);
+      border-radius:16px;
+      box-shadow:var(--shadow);
+      display:grid;
+      grid-template-columns: 400px 1fr;
+      min-height:560px;
+      overflow:hidden;
+      transition: background 0.4s ease;
+    }
+
+    .sidebar {
+      padding:20px;
+      background: linear-gradient(180deg, var(--card), var(--panel));
+      border-right:1px solid rgba(0,0,0,0.05);
+    }
+    header h1 { margin:0 0 6px; font-size:20px }
+    header p { margin:0; color:var(--muted); font-size:13px }
+
+    .group { margin-top:18px; }
+    .group label { display:block; font-size:13px; margin-bottom:6px; }
+    .input {
+      width:100%; padding:10px; border-radius:10px;
+      border:1px solid #e2e8f0; background:var(--card);
+      color:inherit; transition:border 0.3s, box-shadow 0.3s;
+    }
+    .input:focus { border-color: var(--accent); box-shadow:0 0 0 2px rgba(37,99,235,0.2); }
+
+    .btn {
+      background:var(--accent); color:white;
+      border:0; padding:10px 14px; border-radius:10px;
+      cursor:pointer; font-weight:600; font-size:14px;
+      transition: transform 0.2s ease, background 0.3s;
+    }
+    .btn:hover { transform:translateY(-2px); background:var(--accent-2); }
+    .btn.secondary {
+      background:transparent; border:1px solid var(--accent); color:var(--accent);
+    }
+
+    .status { margin-top:10px; font-size:13px; color:var(--muted); }
+
+    .main { padding:20px; display:flex; flex-direction:column; gap:12px; }
+    .chat-panel {
+      flex:1; border-radius:12px; background:var(--panel);
+      padding:14px; overflow:auto; border:1px solid rgba(0,0,0,0.05);
+    }
+    .log {
+      background:rgba(255,255,255,0.8);
+      border-radius:8px; padding:10px; font-size:13px;
+      overflow:auto; font-family: monospace;
+    }
+
+    .controls { display:flex; gap:10px; flex-wrap:wrap; }
+    .recipient-wrap { flex:1; }
+    .msg-input { flex:2; }
+
+    /* Toast */
+    .toast {
+      position:fixed; bottom:20px; right:20px;
+      background:var(--card); border-radius:10px;
+      padding:12px 16px; box-shadow:var(--shadow);
+      opacity:0; transform:translateY(20px);
+      transition: all 0.4s ease;
+      font-size:14px;
+    }
+    .toast.show { opacity:1; transform:translateY(0); }
+
+    /* Responsive */
+    @media (max-width: 800px) {
+      .app { grid-template-columns:1fr; min-height:720px; }
+      .sidebar { order:2; border-right:none; border-top:1px solid rgba(0,0,0,0.1); }
+      .main { order:1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="app" role="application">
+      <div class="sidebar">
+        <header>
+          <h1>Secure Chat</h1>
+          <p class="muted">End-to-end encrypted demo</p>
+        </header>
+
+        <div class="group">
+          <label for="username">Username</label>
+          <input id="username" class="input" placeholder="alice">
+          <button id="btnRegister" class="btn">Register</button>
+          <button id="btnList" class="btn secondary" style="margin-top:8px;">List Users</button>
+          <div id="status" class="status">Not connected</div>
+        </div>
+
+        <div class="group">
+          <label>Preferences</label>
+          <button class="btn secondary" onclick="toggleTheme()">Toggle Theme</button>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="controls">
+          <div class="recipient-wrap">
+            <label for="recipient" class="muted">Recipient</label>
+            <input id="recipient" class="input" placeholder="bob">
+          </div>
+          <div class="msg-input">
+            <label for="message" class="muted">Message</label>
+            <input id="message" class="input" placeholder="Type a message...">
+          </div>
+          <button id="btnSend" class="btn">Send</button>
+        </div>
+
+        <div class="chat-panel">
+          <div class="muted">Activity log</div>
+          <pre id="log" class="log"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast" class="toast"></div>
+
+  <script src="server.js"></script>
+  <script>
+    // Theme toggle
+    function toggleTheme(){
+      document.body.dataset.theme =
+        document.body.dataset.theme === "dark" ? "" : "dark";
+    }
+
+    // Toast notifications
+    function showToast(msg, type="info"){
+      const toast = document.getElementById("toast");
+      toast.textContent = msg;
+      toast.style.borderLeft = "5px solid " + 
+        (type==="success" ? "var(--success)" :
+         type==="error" ? "var(--danger)" : "var(--accent)");
+      toast.classList.add("show");
+      setTimeout(()=>toast.classList.remove("show"), 3000);
+    }
+
+    // Example hooks (you can call showToast from client.js events)
+    window.addEventListener("messageSent", ()=>showToast("Message sent ✅","success"));
+    window.addEventListener("handshakeOk", ()=>showToast("Handshake complete 🔐","success"));
+    window.addEventListener("errorEvt", ()=>showToast("An error occurred ❌","error"));
+  </script>
+</body>
+</html>
